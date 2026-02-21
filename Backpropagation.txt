@@ -1,0 +1,466 @@
+01_basic_training:
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+model = Sequential([
+    Dense(16, activation='relu', input_shape=(30,)),
+    Dense(8, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+
+
+loss, accuracy = model.evaluate(X_test, y_test)
+print("Test Accuracy:", accuracy)
+#########################################################
+from sklearn.metrics import classification_report, confusion_matrix
+import numpy as np
+
+y_pred = model.predict(X_test)
+y_pred_classes = np.argmax(y_pred, axis=1)
+
+
+print("Classification Report:")
+print(classification_report(y_test, y_pred_classes))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_classes))
+
+
+02_with_learning_curves:
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+import matplotlib.pyplot as plt
+
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+model = Sequential([
+    Dense(16, activation='relu', input_shape=(30,)),
+    Dense(8, activation='relu'),
+    Dense(1, activation='sigmoid')  
+])
+
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+history = model.fit(
+    X_train,
+    y_train,
+    epochs=50,
+    batch_size=32,
+    validation_split=0.2,
+    verbose=1
+)
+
+loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+print("\nTest Accuracy:", accuracy)
+
+y_pred_prob = model.predict(X_test)
+y_pred_classes = (y_pred_prob > 0.5).astype(int).flatten()
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred_classes))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_classes))
+
+
+
+plt.figure()
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+plt.figure()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+
+03_with_training_time:
+import numpy as np
+import pandas as pd
+import time  
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+import matplotlib.pyplot as plt
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+model = Sequential([
+    Dense(16, activation='relu', input_shape=(30,)),
+    Dense(8, activation='relu'),
+    Dense(1, activation='sigmoid') 
+])
+
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+start_time = time.time()  
+
+history = model.fit(
+    X_train,
+    y_train,
+    epochs=50,
+    batch_size=32,
+    validation_split=0.2,
+    verbose=1
+)
+
+end_time = time.time()   
+training_time = end_time - start_time
+
+print("\nTotal Training Time: {:.4f} seconds".format(training_time))
+
+loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+print("\nTest Accuracy:", accuracy)
+
+y_pred_prob = model.predict(X_test)
+y_pred_classes = (y_pred_prob > 0.5).astype(int).flatten()
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred_classes))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_classes))
+
+
+plt.figure()
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+plt.figure()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+04_advanced_metrics_roc_mcc:
+
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    roc_curve,
+    auc,
+    matthews_corrcoef
+)
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+backprop_model = Sequential([
+    Dense(16, activation='relu', input_shape=(X_train.shape[1],)),
+    Dense(8, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+backprop_model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+history = backprop_model.fit(
+    X_train, y_train,
+    epochs=30,
+    batch_size=16,
+    validation_split=0.2,
+    verbose=0
+)
+
+
+
+y_prob = backprop_model.predict(X_test).ravel()
+
+y_pred = (y_prob >= 0.5).astype(int)
+
+cm = confusion_matrix(y_test, y_pred)
+tn, fp, fn, tp = cm.ravel()
+
+print("Confusion Matrix:")
+print(cm)
+
+specificity = tn / (tn + fp)
+print("Specificity:", specificity)
+
+mcc = matthews_corrcoef(y_test, y_pred)
+print("Matthews Correlation Coefficient (MCC):", mcc)
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+fpr, tpr, _ = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+
+print("AUC Score:", roc_auc)
+
+plt.figure()
+plt.plot(fpr, tpr)
+plt.plot([0,1], [0,1], linestyle='--')
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve - Backpropagation")
+plt.show()
+
+05__hyperparameter_experiments:
+import numpy as np
+import time
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    confusion_matrix,
+    accuracy_score,
+    roc_curve,
+    auc,
+    matthews_corrcoef
+)
+
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+configs = [
+    {"lr": 0.001, "neurons": 16, "epochs": 30},
+    {"lr": 0.001, "neurons": 32, "epochs": 30},
+    {"lr": 0.01,  "neurons": 16, "epochs": 30}
+]
+
+results = []
+
+for config in configs:
+
+    model = Sequential([
+        Dense(config["neurons"], activation='relu', input_shape=(X_train.shape[1],)),
+        Dense(1, activation='sigmoid')
+    ])
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=config["lr"])
+
+    model.compile(
+        optimizer=optimizer,
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    start_time = time.time()
+
+    model.fit(
+        X_train, y_train,
+        epochs=config["epochs"],
+        batch_size=16,
+        verbose=0
+    )
+
+    training_time = time.time() - start_time
+
+    
+    y_prob = model.predict(X_test).ravel()
+    y_pred = (y_prob >= 0.5).astype(int)
+
+    acc = accuracy_score(y_test, y_pred)
+
+    cm = confusion_matrix(y_test, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+    specificity = tn / (tn + fp)
+
+    mcc = matthews_corrcoef(y_test, y_pred)
+
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+
+    results.append({
+        "Learning Rate": config["lr"],
+        "Neurons": config["neurons"],
+        "Accuracy": acc,
+        "Specificity": specificity,
+        "MCC": mcc,
+        "AUC": roc_auc,
+        "Training Time (s)": training_time
+    })
+
+for r in results:
+    print(r)
+
+
+06_manual_backpropagation_numpy:
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+import time
+
+data = load_breast_cancer()
+X = data.data
+y = data.target.reshape(-1,1)
+
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+np.random.seed(42)
+input_size = X_train.shape[1]
+hidden_size = 16
+output_size = 1
+
+W1 = np.random.randn(input_size, hidden_size)
+b1 = np.zeros((1, hidden_size))
+W2 = np.random.randn(hidden_size, output_size)
+b2 = np.zeros((1, output_size))
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def sigmoid_deriv(x):
+    return x * (1 - x)
+
+lr = 0.01
+epochs = 500
+
+start = time.time()
+
+for epoch in range(epochs):
+    z1 = np.dot(X_train, W1) + b1
+    a1 = sigmoid(z1)
+    z2 = np.dot(a1, W2) + b2
+    a2 = sigmoid(z2)
+
+    dz2 = a2 - y_train
+    dW2 = np.dot(a1.T, dz2)
+    db2 = np.sum(dz2, axis=0, keepdims=True)
+
+    dz1 = np.dot(dz2, W2.T) * sigmoid_deriv(a1)
+    dW1 = np.dot(X_train.T, dz1)
+    db1 = np.sum(dz1, axis=0)
+
+    W1 -= lr * dW1
+    b1 -= lr * db1
+    W2 -= lr * dW2
+    b2 -= lr * db2
+
+end = time.time()
+
+z1 = np.dot(X_test, W1) + b1
+a1 = sigmoid(z1)
+z2 = np.dot(a1, W2) + b2
+a2 = sigmoid(z2)
+pred = (a2 > 0.5).astype(int)
+
+print("Accuracy:", accuracy_score(y_test, pred))
+print("Training Time:", end - start)

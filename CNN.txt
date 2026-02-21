@@ -1,0 +1,456 @@
+cnn_basic_mnist_model.py:
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten
+
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+X_train = X_train.reshape(-1, 28, 28, 1)
+X_test = X_test.reshape(-1, 28, 28, 1)
+
+y_train = to_categorical(y_train)
+y_test = to_categorical(y_test)
+
+model_cnn = Sequential([
+    Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    MaxPooling2D((2,2)),
+    Conv2D(64, (3,3), activation='relu'),
+    MaxPooling2D((2,2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+model_cnn.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+model_cnn.fit(X_train, y_train, epochs=10, batch_size=64, validation_split=0.2)
+
+loss, accuracy = model_cnn.evaluate(X_test, y_test)
+print("Test Accuracy:", accuracy)
+
+cnn_with_evaluation_metrics.py:
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from sklearn.metrics import classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+
+
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+X_train = X_train.reshape(-1, 28, 28, 1)
+X_test = X_test.reshape(-1, 28, 28, 1)
+
+y_train_cat = to_categorical(y_train, 10)
+y_test_cat = to_categorical(y_test, 10)
+
+
+model_cnn = Sequential([
+    Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    MaxPooling2D((2,2)),
+    Conv2D(64, (3,3), activation='relu'),
+    MaxPooling2D((2,2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+model_cnn.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+
+history = model_cnn.fit(
+    X_train,
+    y_train_cat,
+    epochs=10,
+    batch_size=64,
+    validation_split=0.2,
+    verbose=1
+)
+
+
+loss, accuracy = model_cnn.evaluate(X_test, y_test_cat, verbose=0)
+print("\nTest Accuracy:", accuracy)
+
+
+y_pred_prob = model_cnn.predict(X_test)
+y_pred_classes = np.argmax(y_pred_prob, axis=1)
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred_classes))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_classes))
+
+
+plt.figure()
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('CNN Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+plt.figure()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('CNN Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+cnn_with_training_time_analysis.py:
+import numpy as np
+import time 
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from sklearn.metrics import classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+X_train = X_train.reshape(-1, 28, 28, 1)
+X_test = X_test.reshape(-1, 28, 28, 1)
+
+y_train_cat = to_categorical(y_train, 10)
+y_test_cat = to_categorical(y_test, 10)
+
+model_cnn = Sequential([
+    Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    MaxPooling2D((2,2)),
+    Conv2D(64, (3,3), activation='relu'),
+    MaxPooling2D((2,2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+model_cnn.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+
+start_time = time.time()   
+
+history = model_cnn.fit(
+    X_train,
+    y_train_cat,
+    epochs=10,
+    batch_size=64,
+    validation_split=0.2,
+    verbose=1
+)
+
+end_time = time.time()  
+training_time = end_time - start_time
+
+print("\nTotal Training Time: {:.4f} seconds".format(training_time))
+
+
+loss, accuracy = model_cnn.evaluate(X_test, y_test_cat, verbose=0)
+print("\nTest Accuracy:", accuracy)
+
+y_pred_prob = model_cnn.predict(X_test)
+y_pred_classes = np.argmax(y_pred_prob, axis=1)
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred_classes))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_classes))
+
+plt.figure()
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('CNN Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+plt.figure()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('CNN Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+cnn_advanced_metrics_roc_top2_dropout.py:
+
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    roc_curve,
+    auc
+)
+from sklearn.preprocessing import label_binarize
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.datasets import mnist
+
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+X_train = X_train.reshape(-1, 28, 28, 1)
+X_test = X_test.reshape(-1, 28, 28, 1)
+
+y_train_cat = to_categorical(y_train, 10)
+y_test_cat = to_categorical(y_test, 10)
+
+
+cnn_model = Sequential([
+    Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    MaxPooling2D((2,2)),
+    
+    Conv2D(64, (3,3), activation='relu'),
+    MaxPooling2D((2,2)),
+    
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(10, activation='softmax')
+])
+
+cnn_model.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+
+history = cnn_model.fit(
+    X_train, y_train_cat,
+    epochs=5,
+    batch_size=64,
+    validation_split=0.2,
+    verbose=1
+)
+
+test_loss, test_acc = cnn_model.evaluate(X_test, y_test_cat, verbose=0)
+print("Test Accuracy:", test_acc)
+
+y_prob = cnn_model.predict(X_test)
+
+y_pred = np.argmax(y_prob, axis=1)
+
+cm = confusion_matrix(y_test, y_pred)
+print("Confusion Matrix:")
+print(cm)
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+
+top2_pred = np.argsort(y_prob, axis=1)[:, -2:]
+
+correct_top2 = 0
+for i in range(len(y_test)):
+    if y_test[i] in top2_pred[i]:
+        correct_top2 += 1
+
+top2_accuracy = correct_top2 / len(y_test)
+print("Top-1 Accuracy:", test_acc)
+print("Top-2 Accuracy:", top2_accuracy)
+
+y_test_bin = label_binarize(y_test, classes=[0,1,2,3,4,5,6,7,8,9])
+
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+
+for i in range(10):
+    fpr[i], tpr[i], _ = roc_curve(y_test_bin[:, i], y_prob[:, i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+plt.figure()
+plt.plot(fpr[0], tpr[0])
+plt.plot([0,1],[0,1], linestyle='--')
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve - CNN (Class 0)")
+plt.show()
+
+print("Example AUC for Class 0:", roc_auc[0])
+
+cnn_text_classification_imdb_experiments.py:
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Embedding, Conv1D, GlobalMaxPooling1D, Dropout
+from tensorflow.keras.datasets import imdb
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
+import time
+import pandas as pd
+
+num_words = 10000
+maxlen = 200
+
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=num_words)
+
+X_train = pad_sequences(X_train, maxlen=maxlen)
+X_test = pad_sequences(X_test, maxlen=maxlen)
+
+
+configs = [
+    {"filters": 64, "kernel_size": 3, "dropout": 0.3},
+    {"filters": 128, "kernel_size": 3, "dropout": 0.3},
+    {"filters": 64, "kernel_size": 5, "dropout": 0.5},
+]
+
+results = []
+
+for cfg in configs:
+    print("\nTraining CNN with config:", cfg)
+
+    start_time = time.time()
+
+    model = Sequential([
+        Embedding(input_dim=num_words, output_dim=128),
+        Conv1D(filters=cfg["filters"],
+               kernel_size=cfg["kernel_size"],
+               activation='relu'),
+        GlobalMaxPooling1D(),
+        Dropout(cfg["dropout"]),
+        Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    model.fit(
+        X_train,
+        y_train,
+        epochs=5,
+        batch_size=64,
+        validation_split=0.2,
+        verbose=1
+    )
+
+    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+
+    y_prob = model.predict(X_test).flatten()
+    y_pred = (y_prob > 0.5).astype(int)
+
+    cm = confusion_matrix(y_test, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+    specificity = tn / (tn + fp)
+    mcc = matthews_corrcoef(y_test, y_pred)
+    auc_score = roc_auc_score(y_test, y_prob)
+
+    training_time = time.time() - start_time
+
+    results.append({
+        "Filters": cfg["filters"],
+        "Kernel Size": cfg["kernel_size"],
+        "Dropout": cfg["dropout"],
+        "Accuracy": accuracy,
+        "Specificity": specificity,
+        "MCC": mcc,
+        "AUC": auc_score,
+        "Training Time (s)": training_time
+    })
+
+    print("Confusion Matrix:\n", cm)
+    print("Specificity:", specificity)
+    print("MCC:", mcc)
+    print("AUC:", auc_score)
+    print("Test Accuracy:", accuracy)
+
+df_results = pd.DataFrame(results)
+print("\nAll CNN Configurations Results:\n")
+print(df_results)
+
+cnn_sparse_labels_version.py:
+import tensorflow as tf
+from tensorflow import keras
+import time
+
+(X_train, y_train), (X_test, y_test) = keras.datasets.mnist.load_data()
+
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+X_train = X_train.reshape(-1,28,28,1)
+X_test = X_test.reshape(-1,28,28,1)
+
+model = keras.Sequential([
+    keras.layers.Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    keras.layers.MaxPooling2D((2,2)),
+    keras.layers.Conv2D(64, (3,3), activation='relu'),
+    keras.layers.MaxPooling2D((2,2)),
+    keras.layers.Flatten(),
+    keras.layers.Dense(64, activation='relu'),
+    keras.layers.Dropout(0.5),
+    keras.layers.Dense(10, activation='softmax')
+])
+
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+start = time.time()
+model.fit(X_train, y_train, epochs=5, batch_size=64, verbose=1)
+end = time.time()
+
+loss, acc = model.evaluate(X_test, y_test)
+print("Test Accuracy:", acc)
+print("Training Time:", end - start)

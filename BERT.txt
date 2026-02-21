@@ -1,0 +1,773 @@
+bert_basic_small_subset.py:
+import torch
+import numpy as np
+from datasets import load_dataset
+from transformers import (
+    BertTokenizer,
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+
+
+dataset = load_dataset("imdb")
+
+
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+def tokenize_function(example):
+    return tokenizer(
+        example["text"],
+        padding="max_length",
+        truncation=True,
+        max_length=256
+    )
+
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+
+tokenized_datasets = tokenized_datasets.remove_columns(["text"])
+tokenized_datasets.set_format("torch")
+
+
+small_train = tokenized_datasets["train"].select(range(1000))
+small_test = tokenized_datasets["test"].select(range(500))
+
+
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=2
+)
+
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    learning_rate=2e-5,
+    per_device_train_batch_size=8,   
+    per_device_eval_batch_size=8,
+    num_train_epochs=1,             
+    weight_decay=0.01,
+    logging_dir="./logs",
+    logging_steps=50,
+    save_strategy="no",
+    report_to="none"
+)
+
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=small_train,
+    eval_dataset=small_test
+)
+
+
+trainer.train()
+
+
+results = trainer.evaluate()
+print("Evaluation Results:", results)
+
+bert_balanced_subset_with_metrics.py:
+import torch
+import numpy as np
+from datasets import load_dataset
+from transformers import (
+    BertTokenizer,
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, classification_report
+
+
+dataset = load_dataset("imdb")
+
+
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+def tokenize_function(example):
+    return tokenizer(
+        example["text"],
+        padding="max_length",
+        truncation=True,
+        max_length=256
+    )
+
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+tokenized_datasets = tokenized_datasets.remove_columns(["text"])
+tokenized_datasets.set_format("torch")
+
+
+train_dataset = tokenized_datasets["train"]
+test_dataset = tokenized_datasets["test"]
+
+train_class0 = train_dataset.filter(lambda x: x["label"] == 0).select(range(500))
+train_class1 = train_dataset.filter(lambda x: x["label"] == 1).select(range(500))
+
+test_class0 = test_dataset.filter(lambda x: x["label"] == 0).select(range(250))
+test_class1 = test_dataset.filter(lambda x: x["label"] == 1).select(range(250))
+
+small_train = torch.utils.data.ConcatDataset([train_class0, train_class1])
+small_test = torch.utils.data.ConcatDataset([test_class0, test_class1])
+
+
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=2
+)
+
+
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, predictions, average="binary"
+    )
+    acc = accuracy_score(labels, predictions)
+    return {
+        "accuracy": acc,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+    }
+
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    learning_rate=2e-5,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    num_train_epochs=1,
+    weight_decay=0.01,
+    logging_steps=50,
+    save_strategy="no",
+    report_to="none"
+)
+
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=small_train,
+    eval_dataset=small_test,
+    compute_metrics=compute_metrics
+)
+
+
+trainer.train()
+
+
+results = trainer.evaluate()
+print("\nEvaluation Results:", results)
+
+
+predictions = trainer.predict(small_test)
+y_pred = np.argmax(predictions.predictions, axis=1)
+y_true = predictions.label_ids
+
+print("\nClassification Report:")
+print(classification_report(y_true, y_pred))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_true, y_pred))
+
+
+bert_shuffled_balanced_subset.py:
+import torch
+import numpy as np
+from datasets import load_dataset, concatenate_datasets
+from transformers import (
+    BertTokenizer,
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, classification_report
+
+
+dataset = load_dataset("imdb")
+
+
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+def tokenize_function(example):
+    return tokenizer(
+        example["text"],
+        padding="max_length",
+        truncation=True,
+        max_length=256
+    )
+
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+tokenized_datasets = tokenized_datasets.remove_columns(["text"])
+tokenized_datasets.set_format("torch")
+
+
+train_dataset = tokenized_datasets["train"]
+test_dataset = tokenized_datasets["test"]
+
+train_class0 = train_dataset.filter(lambda x: x["label"] == 0).select(range(500))
+train_class1 = train_dataset.filter(lambda x: x["label"] == 1).select(range(500))
+small_train = concatenate_datasets([train_class0, train_class1])
+
+test_class0 = test_dataset.filter(lambda x: x["label"] == 0).select(range(250))
+test_class1 = test_dataset.filter(lambda x: x["label"] == 1).select(range(250))
+small_test = concatenate_datasets([test_class0, test_class1])
+
+small_train = small_train.shuffle(seed=42)
+small_test = small_test.shuffle(seed=42)
+
+
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=2
+)
+
+
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, predictions, average="binary", zero_division=0
+    )
+    acc = accuracy_score(labels, predictions)
+
+    return {
+        "accuracy": acc,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+    }
+
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    learning_rate=2e-5,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    num_train_epochs=1,
+    weight_decay=0.01,
+    logging_steps=50,
+    save_strategy="no",
+    report_to="none",
+    disable_tqdm=False
+)
+
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=small_train,
+    eval_dataset=small_test,
+    compute_metrics=compute_metrics
+)
+
+
+trainer.train()
+
+
+results = trainer.evaluate()
+print("\nEvaluation Results:", results)
+
+predictions = trainer.predict(small_test)
+y_pred = np.argmax(predictions.predictions, axis=1)
+y_true = predictions.label_ids
+
+print("\nClassification Report:")
+print(classification_report(y_true, y_pred, zero_division=0))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_true, y_pred))
+
+
+bert_with_training_time.py:
+import torch
+import time   
+import numpy as np
+from datasets import load_dataset, concatenate_datasets
+from transformers import (
+    BertTokenizer,
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, classification_report
+
+
+dataset = load_dataset("imdb")
+
+
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+def tokenize_function(example):
+    return tokenizer(
+        example["text"],
+        padding="max_length",
+        truncation=True,
+        max_length=256
+    )
+
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+tokenized_datasets = tokenized_datasets.remove_columns(["text"])
+tokenized_datasets.set_format("torch")
+
+
+train_dataset = tokenized_datasets["train"]
+test_dataset = tokenized_datasets["test"]
+
+train_class0 = train_dataset.filter(lambda x: x["label"] == 0).select(range(500))
+train_class1 = train_dataset.filter(lambda x: x["label"] == 1).select(range(500))
+small_train = concatenate_datasets([train_class0, train_class1])
+
+test_class0 = test_dataset.filter(lambda x: x["label"] == 0).select(range(250))
+test_class1 = test_dataset.filter(lambda x: x["label"] == 1).select(range(250))
+small_test = concatenate_datasets([test_class0, test_class1])
+
+small_train = small_train.shuffle(seed=42)
+small_test = small_test.shuffle(seed=42)
+
+
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=2
+)
+
+
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, predictions, average="binary", zero_division=0
+    )
+    acc = accuracy_score(labels, predictions)
+
+    return {
+        "accuracy": acc,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+    }
+
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    learning_rate=2e-5,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    num_train_epochs=1,
+    weight_decay=0.01,
+    logging_steps=50,
+    save_strategy="no",
+    report_to="none",
+    disable_tqdm=False
+)
+
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=small_train,
+    eval_dataset=small_test,
+    compute_metrics=compute_metrics
+)
+
+
+start_time = time.time()  
+
+trainer.train()
+
+end_time = time.time()     
+training_time = end_time - start_time
+
+print("\nTotal Training Time: {:.4f} seconds".format(training_time))
+
+
+results = trainer.evaluate()
+print("\nEvaluation Results:", results)
+
+
+predictions = trainer.predict(small_test)
+y_pred = np.argmax(predictions.predictions, axis=1)
+y_true = predictions.label_ids
+
+print("\nClassification Report:")
+print(classification_report(y_true, y_pred, zero_division=0))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_true, y_pred))
+
+
+bert_full_dataset_advanced_metrics.py:
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    roc_curve,
+    auc,
+    matthews_corrcoef
+)
+
+from datasets import load_dataset
+from transformers import (
+    BertTokenizer,
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+dataset = load_dataset("imdb")
+
+train_dataset = dataset["train"]
+test_dataset = dataset["test"]
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+def tokenize_function(example):
+    return tokenizer(
+        example["text"],
+        padding="max_length",
+        truncation=True,
+        max_length=256
+    )
+
+train_dataset = train_dataset.map(tokenize_function, batched=True)
+test_dataset = test_dataset.map(tokenize_function, batched=True)
+
+train_dataset = train_dataset.remove_columns(["text"])
+test_dataset = test_dataset.remove_columns(["text"])
+
+train_dataset.set_format("torch")
+test_dataset.set_format("torch")
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=2
+)
+training_args = TrainingArguments(
+    output_dir="./bert_results",
+    evaluation_strategy="epoch",
+    save_strategy="no",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=2,
+    weight_decay=0.01,
+    logging_dir="./logs",
+    logging_steps=100
+)
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset
+)
+trainer.train()
+predictions = trainer.predict(test_dataset)
+
+logits = predictions.predictions
+labels = predictions.label_ids
+
+probs = torch.softmax(torch.tensor(logits), dim=1).numpy()
+y_prob = probs[:, 1]
+y_pred = np.argmax(probs, axis=1)
+
+cm = confusion_matrix(labels, y_pred)
+tn, fp, fn, tp = cm.ravel()
+
+print("Confusion Matrix:")
+print(cm)
+
+specificity = tn / (tn + fp)
+print("Specificity:", specificity)
+
+mcc = matthews_corrcoef(labels, y_pred)
+print("Matthews Correlation Coefficient (MCC):", mcc)
+
+print("\nClassification Report:")
+print(classification_report(labels, y_pred))
+
+fpr, tpr, _ = roc_curve(labels, y_prob)
+roc_auc = auc(fpr, tpr)
+
+print("AUC Score:", roc_auc)
+
+plt.figure()
+plt.plot(fpr, tpr)
+plt.plot([0,1], [0,1], linestyle='--')
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve - BERT")
+plt.show()
+
+
+bert_small_dataset_advanced_metrics.py:
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    roc_curve,
+    auc,
+    matthews_corrcoef
+)
+
+from datasets import load_dataset
+from transformers import (
+    BertTokenizer,
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+
+
+dataset = load_dataset("imdb")
+
+train_dataset = dataset["train"].shuffle(seed=42).select(range(1000))
+test_dataset = dataset["test"].shuffle(seed=42).select(range(500))
+
+
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+def tokenize_function(example):
+    return tokenizer(
+        example["text"],
+        padding="max_length",
+        truncation=True,
+        max_length=256
+    )
+
+train_dataset = train_dataset.map(tokenize_function, batched=True)
+test_dataset = test_dataset.map(tokenize_function, batched=True)
+
+train_dataset = train_dataset.remove_columns(["text"])
+test_dataset = test_dataset.remove_columns(["text"])
+
+train_dataset.set_format("torch")
+test_dataset.set_format("torch")
+
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=2
+)
+
+
+training_args = TrainingArguments(
+    output_dir="./bert_results",
+    eval_strategy="epoch",         
+    save_strategy="no",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=2,
+    weight_decay=0.01,
+    logging_dir="./logs",
+    logging_steps=100,
+    report_to="none"               
+)
+
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset
+)
+
+
+trainer.train()
+
+
+predictions = trainer.predict(test_dataset)
+
+logits = predictions.predictions
+labels = predictions.label_ids
+
+probs = torch.softmax(torch.tensor(logits), dim=1).numpy()
+y_prob = probs[:, 1]
+y_pred = np.argmax(probs, axis=1)
+
+
+cm = confusion_matrix(labels, y_pred)
+tn, fp, fn, tp = cm.ravel()
+
+print("Confusion Matrix:")
+print(cm)
+
+specificity = tn / (tn + fp)
+print("Specificity:", specificity)
+
+mcc = matthews_corrcoef(labels, y_pred)
+print("Matthews Correlation Coefficient (MCC):", mcc)
+
+print("\nClassification Report:")
+print(classification_report(labels, y_pred))
+
+
+fpr, tpr, _ = roc_curve(labels, y_prob)
+roc_auc = auc(fpr, tpr)
+
+print("AUC Score:", roc_auc)
+
+plt.figure()
+plt.plot(fpr, tpr)
+plt.plot([0, 1], [0, 1], linestyle='--')
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve - BERT")
+plt.show()
+
+
+bert_large_subset_evaluate_library.py:
+
+import time
+import numpy as np
+import torch
+from datasets import load_dataset
+from transformers import (
+    BertTokenizerFast,
+    BertForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+import evaluate
+
+
+dataset = load_dataset("imdb")
+
+train_dataset = dataset["train"].shuffle(seed=42).select(range(3000))
+test_dataset = dataset["test"].shuffle(seed=42).select(range(1000))
+
+tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
+
+def tokenize_function(example):
+    return tokenizer(
+        example["text"],
+        padding="max_length",
+        truncation=True,
+        max_length=128
+    )
+
+train_dataset = train_dataset.map(tokenize_function, batched=True)
+test_dataset = test_dataset.map(tokenize_function, batched=True)
+
+train_dataset = train_dataset.remove_columns(["text"])
+test_dataset = test_dataset.remove_columns(["text"])
+
+train_dataset.set_format("torch")
+test_dataset.set_format("torch")
+
+
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=2
+)
+
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=2,
+    weight_decay=0.01,
+    logging_dir="./logs",
+    save_steps=500,
+    save_total_limit=1
+)
+
+
+accuracy = evaluate.load("accuracy")
+precision = evaluate.load("precision")
+recall = evaluate.load("recall")
+f1 = evaluate.load("f1")
+
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+
+    return {
+        "accuracy": accuracy.compute(predictions=predictions, references=labels)["accuracy"],
+        "precision": precision.compute(predictions=predictions, references=labels)["precision"],
+        "recall": recall.compute(predictions=predictions, references=labels)["recall"],
+        "f1": f1.compute(predictions=predictions, references=labels)["f1"],
+    }
+
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset,
+    compute_metrics=compute_metrics,
+)
+
+
+start_time = time.time()
+trainer.train()
+training_time = time.time() - start_time
+
+
+results = trainer.evaluate()
+
+print("\nFinal Evaluation Results:")
+print(results)
+print("\nTraining Time (seconds):", training_time)
+
+
+bert_feature_extraction_frozen_base.py:
+import torch
+import time
+from datasets import load_dataset
+from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+import evaluate
+import numpy as np
+
+dataset = load_dataset("imdb")
+
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+def tokenize(example):
+    return tokenizer(example["text"], truncation=True, padding="max_length", max_length=128)
+
+dataset = dataset.map(tokenize, batched=True)
+dataset = dataset.rename_column("label", "labels")
+dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
+
+model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+
+for param in model.bert.parameters():
+    param.requires_grad = False
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    num_train_epochs=1,
+    weight_decay=0.01,
+    logging_steps=100,
+    save_strategy="no"
+)
+
+accuracy = evaluate.load("accuracy")
+
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    return accuracy.compute(predictions=predictions, references=labels)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset["train"].select(range(2000)),
+    eval_dataset=dataset["test"].select(range(1000)),
+    compute_metrics=compute_metrics,
+)
+
+start = time.time()
+trainer.train()
+end = time.time()
+
+results = trainer.evaluate()
+print("Evaluation Results:", results)
+print("Training Time:", end - start)

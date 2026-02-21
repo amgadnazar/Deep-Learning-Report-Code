@@ -1,0 +1,447 @@
+01_fnn_deep_basic_training:
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+model_fnn = Sequential([
+    Dense(64, activation='relu', input_shape=(30,)),
+    Dense(32, activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+model_fnn.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+model_fnn.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2)
+
+loss, accuracy = model_fnn.evaluate(X_test, y_test)
+print("Test Accuracy:", accuracy)
+
+02_fnn_with_learning_curves:
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+import matplotlib.pyplot as plt
+
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+
+model_fnn = Sequential([
+    Dense(64, activation='relu', input_shape=(30,)),
+    Dense(32, activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+model_fnn.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+history = model_fnn.fit(
+    X_train,
+    y_train,
+    epochs=100,
+    batch_size=32,
+    validation_split=0.2,
+    verbose=1
+)
+
+
+loss, accuracy = model_fnn.evaluate(X_test, y_test, verbose=0)
+print("\nTest Accuracy:", accuracy)
+
+
+y_pred_prob = model_fnn.predict(X_test)
+y_pred_classes = (y_pred_prob > 0.5).astype(int).flatten()
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred_classes))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_classes))
+
+
+
+plt.figure()
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Deeper FNN Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+plt.figure()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Deeper FNN Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+03_fnn_with_training_time_analysis:
+import numpy as np
+import pandas as pd
+import time   
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+import matplotlib.pyplot as plt
+
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+
+model_fnn = Sequential([
+    Dense(64, activation='relu', input_shape=(30,)),
+    Dense(32, activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+model_fnn.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+
+start_time = time.time()   
+
+history = model_fnn.fit(
+    X_train,
+    y_train,
+    epochs=100,
+    batch_size=32,
+    validation_split=0.2,
+    verbose=1
+)
+
+end_time = time.time()     
+training_time = end_time - start_time
+
+print("\nTotal Training Time: {:.4f} seconds".format(training_time))
+
+
+loss, accuracy = model_fnn.evaluate(X_test, y_test, verbose=0)
+print("\nTest Accuracy:", accuracy)
+
+
+y_pred_prob = model_fnn.predict(X_test)
+y_pred_classes = (y_pred_prob > 0.5).astype(int).flatten()
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred_classes))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_classes))
+
+
+plt.figure()
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Deeper FNN Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+plt.figure()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Deeper FNN Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.show()
+
+04_fnn_with_dropout_and_advanced_metrics:
+
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    confusion_matrix,
+    classification_report,
+    roc_curve,
+    auc,
+    matthews_corrcoef
+)
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+fnn_model = Sequential([
+    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    Dropout(0.3),
+    Dense(32, activation='relu'),
+    Dropout(0.3),
+    Dense(16, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+fnn_model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+
+history = fnn_model.fit(
+    X_train, y_train,
+    epochs=50,
+    batch_size=16,
+    validation_split=0.2,
+    verbose=0
+)
+
+
+
+y_prob = fnn_model.predict(X_test).ravel()
+
+y_pred = (y_prob >= 0.5).astype(int)
+
+cm = confusion_matrix(y_test, y_pred)
+tn, fp, fn, tp = cm.ravel()
+
+print("FNN Confusion Matrix:")
+print(cm)
+
+specificity = tn / (tn + fp)
+print("Specificity:", specificity)
+
+mcc = matthews_corrcoef(y_test, y_pred)
+print("Matthews Correlation Coefficient (MCC):", mcc)
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+fpr, tpr, _ = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+
+print("AUC Score:", roc_auc)
+
+plt.figure()
+plt.plot(fpr, tpr)
+plt.plot([0,1], [0,1], linestyle='--')
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve - Feedforward Neural Network")
+plt.show()
+
+05_fnn_ablation_dropout_and_depth:
+import numpy as np
+import time
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    confusion_matrix,
+    accuracy_score,
+    roc_curve,
+    auc,
+    matthews_corrcoef
+)
+
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Input
+
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+
+configs = [
+    {"dropout": 0.3, "extra_layer": False},
+    {"dropout": 0.5, "extra_layer": False},
+    {"dropout": 0.3, "extra_layer": True}
+]
+
+results = []
+
+
+for config in configs:
+
+    model = Sequential()
+    model.add(Input(shape=(X_train.shape[1],)))
+    model.add(Dense(32, activation='relu'))
+    model.add(Dropout(config["dropout"]))
+
+    if config["extra_layer"]:
+        model.add(Dense(16, activation='relu'))
+
+    model.add(Dense(1, activation='sigmoid'))
+
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    start_time = time.time()
+
+    model.fit(
+        X_train, y_train,
+        epochs=30,
+        batch_size=16,
+        verbose=0
+    )
+
+    training_time = time.time() - start_time
+
+    y_prob = model.predict(X_test).ravel()
+    y_pred = (y_prob >= 0.5).astype(int)
+
+    acc = accuracy_score(y_test, y_pred)
+
+    cm = confusion_matrix(y_test, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+    specificity = tn / (tn + fp)
+
+    mcc = matthews_corrcoef(y_test, y_pred)
+
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+
+    results.append({
+        "Dropout": config["dropout"],
+        "Extra Hidden Layer": config["extra_layer"],
+        "Accuracy": acc,
+        "Specificity": specificity,
+        "MCC": mcc,
+        "AUC": roc_auc,
+        "Training Time (s)": training_time
+    })
+
+
+for r in results:
+    print(r)
+
+06_fnn_compact_version_with_time:
+import tensorflow as tf
+from tensorflow import keras
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import time
+
+data = load_breast_cancer()
+X = data.data
+y = data.target
+
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+model = keras.Sequential([
+    keras.layers.Dense(32, activation='relu', input_shape=(X.shape[1],)),
+    keras.layers.Dense(16, activation='relu'),
+    keras.layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(optimizer='adam',
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
+
+start = time.time()
+model.fit(X_train, y_train, epochs=50, batch_size=16, verbose=1)
+end = time.time()
+
+loss, acc = model.evaluate(X_test, y_test)
+print("Test Accuracy:", acc)
+print("Training Time:", end - start)
+
